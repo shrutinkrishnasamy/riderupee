@@ -7,6 +7,8 @@ import {
   onAuthStateChanged,
   signOut,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   Auth,
   User
@@ -72,6 +74,39 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
 
   const disabled = !!firebaseInitError || !auth || !db;
 
+  // Handle Google redirect result when page loads
+  useEffect(() => {
+    if (!auth || !db) return;
+    
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const user = result.user;
+          const pendingRole = localStorage.getItem('pendingRole') || 'user';
+          localStorage.removeItem('pendingRole');
+          
+          // Check if user already exists in our database
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          
+          // If user doesn't exist, create a new document with stored role
+          if (!userDoc.exists()) {
+            await setDoc(doc(db, "users", user.uid), { 
+              email: user.email, 
+              role: pendingRole
+            });
+          }
+          
+          if (onAuthChanged) onAuthChanged();
+        }
+      } catch (error) {
+        console.error("Redirect result error:", error);
+      }
+    };
+
+    handleRedirectResult();
+  }, [auth, db, onAuthChanged]);
+
   const handleLogin = async () => {
     if (disabled) {
       alert("Firebase setup required. Please add your Firebase credentials to enable login.");
@@ -115,29 +150,47 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
       return;
     }
     setLoading(true);
+    
+    // Store the selected role in localStorage before redirect
+    localStorage.setItem('pendingRole', role);
+    
     try {
       // Configure Google provider with custom parameters
       googleProvider.setCustomParameters({
         prompt: 'select_account'
       });
       
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      
-      // Check if user already exists in our database
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      
-      // If user doesn't exist, create a new document with default role
-      if (!userDoc.exists()) {
-        await setDoc(doc(db, "users", user.uid), { 
-          email: user.email, 
-          role: role // Use selected role from dropdown
-        });
+      // Try popup first, fallback to redirect if it fails
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+        
+        // Check if user already exists in our database
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        
+        // If user doesn't exist, create a new document with selected role
+        if (!userDoc.exists()) {
+          await setDoc(doc(db, "users", user.uid), { 
+            email: user.email, 
+            role: role
+          });
+        }
+        
+        if (onAuthChanged) onAuthChanged();
+      } catch (popupError: any) {
+        console.log("Popup failed, trying redirect method...", popupError);
+        
+        // If popup fails, use redirect method
+        if (popupError.code === "auth/popup-blocked" || 
+            popupError.code === "auth/unauthorized-domain" ||
+            popupError.message?.includes("Unable to open a window")) {
+          await signInWithRedirect(auth, googleProvider);
+          return; // Don't set loading to false here as page will redirect
+        }
+        throw popupError; // Re-throw other errors
       }
-      
-      if (onAuthChanged) onAuthChanged();
     } catch (e: any) {
-      console.error(e);
+      console.error("Google sign-in error:", e);
       if (e.code === "auth/popup-closed-by-user") {
         alert("Sign-in was cancelled.");
       } else if (e.code === "auth/unauthorized-domain") {
