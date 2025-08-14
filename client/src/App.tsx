@@ -99,39 +99,97 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
   };
 
   return (
-    <div style={{ maxWidth: 480, margin: "32px auto", padding: 12 }}>
-      <h2>Riderupee — Login / Register</h2>
+    <div style={{ maxWidth: 480, margin: "32px auto", padding: 24, backgroundColor: "white", borderRadius: 8, boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)" }}>
+      <h2 style={{ color: "#1f2937", fontSize: "24px", fontWeight: "bold", marginBottom: "24px", textAlign: "center" }}>Riderupee — Login / Register</h2>
       {firebaseInitError && (
-        <div style={{ color: "#b91c1c", marginBottom: 8 }}>
+        <div style={{ color: "#dc2626", backgroundColor: "#fef2f2", padding: 12, borderRadius: 6, marginBottom: 16, border: "1px solid #fecaca" }}>
           Firebase initialization error. Check your config in the source file.
         </div>
       )}
       <input
-        style={{ display: "block", padding: 8, width: "100%", marginBottom: 8 }}
+        style={{ 
+          display: "block", 
+          padding: 12, 
+          width: "100%", 
+          marginBottom: 16, 
+          border: "1px solid #d1d5db",
+          borderRadius: 6,
+          fontSize: "16px",
+          color: "#1f2937",
+          backgroundColor: "white"
+        }}
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
       <input
-        style={{ display: "block", padding: 8, width: "100%", marginBottom: 8 }}
+        style={{ 
+          display: "block", 
+          padding: 12, 
+          width: "100%", 
+          marginBottom: 16, 
+          border: "1px solid #d1d5db",
+          borderRadius: 6,
+          fontSize: "16px",
+          color: "#1f2937",
+          backgroundColor: "white"
+        }}
         placeholder="Password"
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
       <select
-        style={{ display: "block", padding: 8, width: "100%", marginBottom: 8 }}
+        style={{ 
+          display: "block", 
+          padding: 12, 
+          width: "100%", 
+          marginBottom: 16, 
+          border: "1px solid #d1d5db",
+          borderRadius: 6,
+          fontSize: "16px",
+          color: "#1f2937",
+          backgroundColor: "white"
+        }}
         value={role}
         onChange={(e) => setRole(e.target.value)}
       >
         <option value="user">User</option>
         <option value="owner">Taxi Owner</option>
       </select>
-      <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={handleLogin} disabled={loading || disabled} style={{ flex: 1, padding: 10 }}>
+      <div style={{ display: "flex", gap: 12 }}>
+        <button 
+          onClick={handleLogin} 
+          disabled={loading || disabled} 
+          style={{ 
+            flex: 1, 
+            padding: 12,
+            backgroundColor: disabled ? "#9ca3af" : "#3b82f6",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            fontSize: "16px",
+            fontWeight: "600",
+            cursor: disabled ? "not-allowed" : "pointer"
+          }}
+        >
           Login
         </button>
-        <button onClick={handleRegister} disabled={loading || disabled} style={{ flex: 1, padding: 10 }}>
+        <button 
+          onClick={handleRegister} 
+          disabled={loading || disabled} 
+          style={{ 
+            flex: 1, 
+            padding: 12,
+            backgroundColor: disabled ? "#9ca3af" : "#10b981",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            fontSize: "16px",
+            fontWeight: "600",
+            cursor: disabled ? "not-allowed" : "pointer"
+          }}
+        >
           Register
         </button>
       </div>
@@ -237,8 +295,19 @@ function MapPanel({ currentUser }: MapPanelProps) {
   }, [mapsLoaded, location, taxis]);
 
   return (
-    <div style={{ marginTop: 16 }}>
-      {errorMsg && <div style={{ color: "#b91c1c", padding: 8 }}>{errorMsg}</div>}
+    <div>
+      {errorMsg && (
+        <div style={{ 
+          color: "#dc2626", 
+          backgroundColor: "#fef2f2", 
+          padding: 12, 
+          margin: 16,
+          borderRadius: 6, 
+          border: "1px solid #fecaca" 
+        }}>
+          {errorMsg}
+        </div>
+      )}
       <div ref={containerRef} style={{ height: 400, width: "100%" }} />
     </div>
   );
@@ -293,16 +362,85 @@ function ChatPanel({ user }: ChatPanelProps) {
   };
 
   return (
-    <div style={{ marginTop: 16 }}>
-      <input placeholder="Chat with (owner email)" value={chatWith} onChange={(e) => setChatWith(e.target.value)} style={{ width: "100%", padding: 8, marginBottom: 8 }} />
-      <div style={{ border: "1px solid #ddd", height: 200, overflowY: "auto", padding: 8 }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ marginBottom: 6 }}><strong>{m.sender}:</strong> {m.text}</div>
-        ))}
+    <div>
+      <h3 style={{ color: "#1f2937", fontSize: "18px", fontWeight: "600", marginBottom: 16, margin: "0 0 16px 0" }}>Chat with Taxi Owner</h3>
+      <input 
+        placeholder="Chat with (owner email)" 
+        value={chatWith} 
+        onChange={(e) => setChatWith(e.target.value)} 
+        style={{ 
+          width: "100%", 
+          padding: 12, 
+          marginBottom: 16,
+          border: "1px solid #d1d5db",
+          borderRadius: 6,
+          fontSize: "14px",
+          color: "#1f2937",
+          backgroundColor: "white"
+        }} 
+      />
+      <div style={{ 
+        border: "1px solid #e5e7eb", 
+        height: 200, 
+        overflowY: "auto", 
+        padding: 16,
+        backgroundColor: "#f9fafb",
+        borderRadius: 6
+      }}>
+        {messages.length === 0 ? (
+          <div style={{ 
+            textAlign: "center", 
+            color: "#6b7280", 
+            fontSize: "14px",
+            paddingTop: 60 
+          }}>
+            No messages yet. Start a conversation!
+          </div>
+        ) : (
+          messages.map((m, i) => (
+            <div key={i} style={{ 
+              marginBottom: 12,
+              padding: 8,
+              backgroundColor: m.sender === user?.email ? "#dbeafe" : "white",
+              borderRadius: 6,
+              border: "1px solid #e5e7eb"
+            }}>
+              <strong style={{ color: "#374151", fontSize: "12px" }}>{m.sender}:</strong>
+              <p style={{ color: "#1f2937", margin: "4px 0 0 0", fontSize: "14px" }}>{m.text}</p>
+            </div>
+          ))
+        )}
       </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Type message" style={{ flex: 1, padding: 8 }} />
-        <button onClick={sendMessage} style={{ padding: "8px 12px" }}>Send</button>
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <input 
+          value={text} 
+          onChange={(e) => setText(e.target.value)} 
+          placeholder="Type message" 
+          style={{ 
+            flex: 1, 
+            padding: 12,
+            border: "1px solid #d1d5db",
+            borderRadius: 6,
+            fontSize: "14px",
+            color: "#1f2937",
+            backgroundColor: "white"
+          }} 
+        />
+        <button 
+          onClick={sendMessage}
+          style={{
+            padding: "12px 20px",
+            backgroundColor: "#3b82f6",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer",
+            fontSize: "14px",
+            fontWeight: "500"
+          }}
+        >
+          Send
+        </button>
       </div>
     </div>
   );
@@ -338,16 +476,45 @@ export default function App() {
   if (!user || !role) return <LoginPanel onAuthChanged={() => setRefreshFlag(f => f + 1)} />;
 
   return (
-    <div style={{ padding: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1>Riderupee</h1>
-        <div>
-          <span style={{ marginRight: 12 }}>{user.email} ({role})</span>
-          <button onClick={handleSignOut}>Logout</button>
+    <div style={{ padding: 16, minHeight: "100vh", backgroundColor: "#f9fafb", color: "#1f2937" }}>
+      <div style={{ 
+        display: "flex", 
+        justifyContent: "space-between", 
+        alignItems: "center",
+        backgroundColor: "white",
+        padding: 16,
+        borderRadius: 8,
+        marginBottom: 24,
+        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)"
+      }}>
+        <h1 style={{ color: "#1f2937", fontSize: "28px", fontWeight: "bold", margin: 0 }}>Riderupee</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <span style={{ color: "#6b7280", fontSize: "14px" }}>{user.email} ({role})</span>
+          <button 
+            onClick={handleSignOut}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: "#ef4444",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontSize: "14px",
+              fontWeight: "500"
+            }}
+          >
+            Logout
+          </button>
         </div>
       </div>
-      <MapPanel currentUser={user} />
-      <ChatPanel user={user} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 24 }}>
+        <div style={{ backgroundColor: "white", borderRadius: 8, overflow: "hidden", boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)" }}>
+          <MapPanel currentUser={user} />
+        </div>
+        <div style={{ backgroundColor: "white", borderRadius: 8, padding: 16, boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)" }}>
+          <ChatPanel user={user} />
+        </div>
+      </div>
     </div>
   );
 }
