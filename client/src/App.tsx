@@ -116,6 +116,11 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
     }
     setLoading(true);
     try {
+      // Configure Google provider with custom parameters
+      googleProvider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       
@@ -135,6 +140,8 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
       console.error(e);
       if (e.code === "auth/popup-closed-by-user") {
         alert("Sign-in was cancelled.");
+      } else if (e.code === "auth/unauthorized-domain") {
+        alert("This domain is not authorized for Firebase authentication. Please add your Replit URL to Firebase Console → Authentication → Settings → Authorized domains.");
       } else if (e.code === "auth/api-key-not-valid.-please-pass-a-valid-api-key.") {
         alert("Firebase API key is invalid. Please check your Firebase configuration.");
       } else {
@@ -159,6 +166,7 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
             <li>Create a new project or use existing one</li>
             <li>Enable Authentication with Google and Email/Password</li>
             <li>Enable Firestore Database</li>
+            <li><strong>Important:</strong> Add <code style={{ backgroundColor: "#f3f4f6", padding: "2px 4px", borderRadius: "3px", fontSize: "12px" }}>{window.location.origin}</code> to Authentication → Settings → Authorized domains</li>
             <li>Add your Firebase credentials to this Replit project</li>
           </ol>
           <p style={{ margin: "8px 0 0 0", fontSize: "12px", color: "#6b7280" }}>
