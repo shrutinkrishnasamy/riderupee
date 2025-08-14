@@ -227,12 +227,15 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
           </p>
           <ol style={{ margin: "0", fontSize: "13px", lineHeight: "1.4", paddingLeft: "20px" }}>
             <li>Go to <a href="https://console.firebase.google.com/" target="_blank" style={{ color: "#3b82f6" }}>Firebase Console</a></li>
-            <li>Create a new project or use existing one</li>
-            <li>Enable Authentication with Google and Email/Password</li>
-            <li>Enable Firestore Database</li>
-            <li><strong>Important:</strong> Add <code style={{ backgroundColor: "#f3f4f6", padding: "2px 4px", borderRadius: "3px", fontSize: "12px" }}>{window.location.origin}</code> to Authentication → Settings → Authorized domains</li>
-            <li>Add your Firebase credentials to this Replit project</li>
+            <li>Select your project</li>
+            <li><strong>Authentication → Sign-in method</strong>: Enable Google AND Email/Password</li>
+            <li><strong>Authentication → Settings → Authorized domains</strong>: Add <code style={{ backgroundColor: "#f3f4f6", padding: "2px 4px", borderRadius: "3px", fontSize: "11px" }}>{window.location.hostname}</code></li>
+            <li>Enable <strong>Firestore Database</strong></li>
+            <li>Your Firebase credentials are already configured</li>
           </ol>
+          <p style={{ margin: "12px 0 0 0", fontSize: "12px", color: "#dc2626", fontWeight: "600" }}>
+            Current Error: Google sign-in not enabled in Firebase Console
+          </p>
           <p style={{ margin: "8px 0 0 0", fontSize: "12px", color: "#6b7280" }}>
             The app will work fully once Firebase is configured.
           </p>
