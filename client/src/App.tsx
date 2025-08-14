@@ -180,12 +180,23 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
       } catch (popupError: any) {
         console.log("Popup failed, trying redirect method...", popupError);
         
-        // If popup fails, use redirect method
+        // If popup fails, try redirect method
         if (popupError.code === "auth/popup-blocked" || 
             popupError.code === "auth/unauthorized-domain" ||
-            popupError.message?.includes("Unable to open a window")) {
-          await signInWithRedirect(auth, googleProvider);
-          return; // Don't set loading to false here as page will redirect
+            popupError.message?.includes("Unable to open a window") ||
+            popupError.message?.includes("Failed to execute 'open'")) {
+          try {
+            await signInWithRedirect(auth, googleProvider);
+            return; // Don't set loading to false here as page will redirect
+          } catch (redirectError: any) {
+            console.error("Redirect also failed:", redirectError);
+            if (redirectError.code === "auth/unauthorized-domain") {
+              alert(`Firebase domain authorization required. Please add "${window.location.hostname}" to your Firebase Console → Authentication → Settings → Authorized domains`);
+            } else {
+              alert("Authentication failed. Please check your Firebase configuration and authorized domains.");
+            }
+            throw redirectError;
+          }
         }
         throw popupError; // Re-throw other errors
       }
@@ -348,6 +359,20 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
         </svg>
         Continue with Google
       </button>
+      
+      {disabled && (
+        <div style={{ 
+          marginTop: 16, 
+          padding: 12, 
+          backgroundColor: "#fef3c7", 
+          border: "1px solid #f59e0b",
+          borderRadius: 6, 
+          fontSize: "13px", 
+          color: "#92400e" 
+        }}>
+          <strong>Need Firebase Setup:</strong> For Google sign-in to work, add your current URL <code style={{ backgroundColor: "#ffffff", padding: "2px 4px", borderRadius: "3px" }}>{window.location.hostname}</code> to Firebase Console → Authentication → Settings → Authorized domains
+        </div>
+      )}
     </div>
   );
 }
