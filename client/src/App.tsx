@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useRef } from "react";
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import {
   getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
-  signOut
+  signOut,
+  Auth,
+  User
 } from "firebase/auth";
 import {
   getFirestore,
@@ -18,8 +20,16 @@ import {
   query,
   where,
   onSnapshot,
-  serverTimestamp
+  serverTimestamp,
+  Firestore
 } from "firebase/firestore";
+
+// Extend Window interface for Google Maps
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 // === CONFIG - replace with your real Firebase config ===
 const firebaseConfig = {
@@ -31,10 +41,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "YOUR_FIREBASE_APP_ID"
 };
 
-let app = null;
-let auth = null;
-let db = null;
-let firebaseInitError = null;
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let db: Firestore | null = null;
+let firebaseInitError: any = null;
 
 try {
   app = getApps().length ? getApp() : initializeApp(firebaseConfig);
@@ -45,7 +55,11 @@ try {
   // keep auth/db null so UI can show helpful message
 }
 
-function LoginPanel({ onAuthChanged }) {
+interface LoginPanelProps {
+  onAuthChanged: () => void;
+}
+
+function LoginPanel({ onAuthChanged }: LoginPanelProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("user");
@@ -60,7 +74,7 @@ function LoginPanel({ onAuthChanged }) {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       if (onAuthChanged) onAuthChanged();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       alert(e?.message || "Login failed");
     } finally {
@@ -76,7 +90,7 @@ function LoginPanel({ onAuthChanged }) {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
       await setDoc(doc(db, "users", userCred.user.uid), { email, role });
       if (onAuthChanged) onAuthChanged();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       alert(e?.message || "Registration failed");
     } finally {
@@ -125,13 +139,24 @@ function LoginPanel({ onAuthChanged }) {
   );
 }
 
-function MapPanel({ currentUser }) {
-  const containerRef = useRef(null);
-  const mapRef = useRef(null);
-  const markersRef = useRef([]);
-  const [location, setLocation] = useState(null);
-  const [taxis, setTaxis] = useState([]);
-  const [errorMsg, setErrorMsg] = useState(null);
+interface MapPanelProps {
+  currentUser: User | null;
+}
+
+interface TaxiLocation {
+  id: string;
+  name?: string;
+  lat: number;
+  lng: number;
+}
+
+function MapPanel({ currentUser }: MapPanelProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<google.maps.Marker[]>([]);
+  const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [taxis, setTaxis] = useState<TaxiLocation[]>([]);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const DEFAULT_CENTER = { lat: 12.9716, lng: 77.5946 };
   const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY";
@@ -181,10 +206,10 @@ function MapPanel({ currentUser }) {
         const snap = await getDocs(collection(db, "taxis"));
         if (cancelled) return;
         const list = snap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
+          .map(d => ({ id: d.id, ...d.data() } as TaxiLocation))
           .filter(t => typeof t.lat === "number" && typeof t.lng === "number");
         setTaxis(list);
-      } catch (e) {
+      } catch (e: any) {
         console.error(e);
       }
     })();
@@ -219,11 +244,22 @@ function MapPanel({ currentUser }) {
   );
 }
 
-function ChatPanel({ user }) {
+interface ChatPanelProps {
+  user: User | null;
+}
+
+interface Message {
+  text: string;
+  sender: string;
+  participants: string[];
+  createdAt: any;
+}
+
+function ChatPanel({ user }: ChatPanelProps) {
   const [chatWith, setChatWith] = useState("");
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
-  const unsubRef = useRef(null);
+  const unsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
@@ -231,7 +267,7 @@ function ChatPanel({ user }) {
     if (!db) return;
     const q = query(collection(db, "messages"), where("participants", "array-contains", user.email));
     const unsub = onSnapshot(q, snap => {
-      const all = snap.docs.map(d => d.data()).filter(m => Array.isArray(m.participants) && m.participants.includes(chatWith));
+      const all = snap.docs.map(d => d.data() as Message).filter(m => Array.isArray(m.participants) && m.participants.includes(chatWith));
       all.sort((a, b) => {
         const ta = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate() : (a.createdAt ? new Date(a.createdAt) : new Date(0));
         const tb = b.createdAt && b.createdAt.toDate ? b.createdAt.toDate() : (b.createdAt ? new Date(b.createdAt) : new Date(0));
@@ -250,7 +286,7 @@ function ChatPanel({ user }) {
     try {
       await addDoc(collection(db, "messages"), { text: body, sender: user.email, participants: [user.email, chatWith], createdAt: serverTimestamp() });
       setText("");
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       alert("Failed to send message");
     }
@@ -273,8 +309,8 @@ function ChatPanel({ user }) {
 }
 
 export default function App() {
-  const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [refreshFlag, setRefreshFlag] = useState(0);
 
   useEffect(() => {
@@ -287,7 +323,7 @@ export default function App() {
         const snap = await getDoc(doc(db, "users", u.uid));
         const r = snap.exists() ? snap.data().role : null;
         setRole(r === "user" || r === "owner" ? r : null);
-      } catch (e) {
+      } catch (e: any) {
         console.error(e);
         setRole(null);
       }
@@ -295,7 +331,7 @@ export default function App() {
     return () => unsub();
   }, [refreshFlag]);
 
-  const handleSignOut = async () => { if (!auth) return; try { await signOut(auth); } catch (e) { console.error(e); } };
+  const handleSignOut = async () => { if (!auth) return; try { await signOut(auth); } catch (e: any) { console.error(e); } };
 
   if (!auth || !db || firebaseInitError) return <LoginPanel onAuthChanged={() => setRefreshFlag(f => f + 1)} />;
 
