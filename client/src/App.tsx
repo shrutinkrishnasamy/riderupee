@@ -219,28 +219,63 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
   return (
     <div style={{ maxWidth: 480, margin: "32px auto", padding: 24, backgroundColor: "white", borderRadius: 8, boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)" }}>
       <h2 style={{ color: "#1f2937", fontSize: "24px", fontWeight: "bold", marginBottom: "24px", textAlign: "center" }}>Riderupee — Login / Register</h2>
-      {(firebaseInitError || (!import.meta.env.VITE_FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_FIREBASE_API_KEY")) && (
+      {(firebaseInitError || disabled) && (
         <div style={{ color: "#dc2626", backgroundColor: "#fef2f2", padding: 16, borderRadius: 6, marginBottom: 16, border: "1px solid #fecaca" }}>
-          <h4 style={{ margin: "0 0 8px 0", fontWeight: "600" }}>Firebase Configuration Required</h4>
-          <p style={{ margin: "0 0 8px 0", fontSize: "14px", lineHeight: "1.4" }}>
-            To use authentication and real-time features, you need to set up Firebase:
+          <h4 style={{ margin: "0 0 8px 0", fontWeight: "600" }}>Firebase Authentication Setup Needed</h4>
+          <p style={{ margin: "0 0 12px 0", fontSize: "14px", lineHeight: "1.4" }}>
+            Complete these steps in <a href="https://console.firebase.google.com/" target="_blank" style={{ color: "#3b82f6" }}>Firebase Console</a>:
           </p>
-          <ol style={{ margin: "0", fontSize: "13px", lineHeight: "1.4", paddingLeft: "20px" }}>
-            <li>Go to <a href="https://console.firebase.google.com/" target="_blank" style={{ color: "#3b82f6" }}>Firebase Console</a></li>
-            <li>Select your project</li>
-            <li><strong>Authentication → Sign-in method</strong>: Enable Google AND Email/Password</li>
+          <ol style={{ margin: "0 0 12px 0", fontSize: "13px", lineHeight: "1.5", paddingLeft: "20px" }}>
+            <li><strong>Authentication → Sign-in method</strong>: Enable "Email/Password" provider</li>
+            <li><strong>Authentication → Sign-in method</strong>: Enable "Google" provider (optional)</li>
             <li><strong>Authentication → Settings → Authorized domains</strong>: Add <code style={{ backgroundColor: "#f3f4f6", padding: "2px 4px", borderRadius: "3px", fontSize: "11px" }}>{window.location.hostname}</code></li>
-            <li>Enable <strong>Firestore Database</strong></li>
-            <li>Your Firebase credentials are already configured</li>
+            <li><strong>Firestore Database</strong>: Create database in test mode</li>
           </ol>
-          <p style={{ margin: "12px 0 0 0", fontSize: "12px", color: "#dc2626", fontWeight: "600" }}>
-            Current Error: Google sign-in not enabled in Firebase Console
-          </p>
-          <p style={{ margin: "8px 0 0 0", fontSize: "12px", color: "#6b7280" }}>
-            The app will work fully once Firebase is configured.
-          </p>
+          <div style={{ 
+            backgroundColor: "#fff3cd", 
+            border: "1px solid #ffeaa7", 
+            borderRadius: 4, 
+            padding: 8,
+            fontSize: "12px",
+            color: "#856404" 
+          }}>
+            💡 <strong>Quick Test:</strong> You can try the demo mode below to explore the app interface while setting up Firebase.
+          </div>
         </div>
       )}
+      
+      <div style={{ 
+        backgroundColor: "#f8f9fa", 
+        border: "1px solid #e9ecef", 
+        borderRadius: 6, 
+        padding: 12, 
+        marginBottom: 16,
+        textAlign: "center" 
+      }}>
+        <button 
+          onClick={() => {
+            // Demo mode - simulate login
+            const demoUser = { uid: 'demo-user', email: 'demo@example.com' };
+            localStorage.setItem('demoMode', 'true');
+            localStorage.setItem('demoRole', role);
+            window.location.reload();
+          }}
+          style={{
+            padding: "8px 16px",
+            backgroundColor: "#6c757d",
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            fontSize: "14px",
+            cursor: "pointer"
+          }}
+        >
+          Try Demo Mode (No Firebase needed)
+        </button>
+        <p style={{ margin: "8px 0 0 0", fontSize: "12px", color: "#6c757d" }}>
+          Test the app interface while setting up Firebase authentication
+        </p>
+      </div>
       <input
         style={{ 
           display: "block", 
@@ -633,8 +668,17 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [refreshFlag, setRefreshFlag] = useState(0);
+  const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
+    // Check for demo mode
+    if (localStorage.getItem('demoMode')) {
+      setDemoMode(true);
+      setUser({ uid: 'demo-user', email: 'demo@example.com' } as User);
+      setRole(localStorage.getItem('demoRole') || 'user');
+      return;
+    }
+
     if (!auth) return;
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) { setUser(null); setRole(null); return; }
@@ -652,9 +696,18 @@ export default function App() {
     return () => unsub();
   }, [refreshFlag]);
 
-  const handleSignOut = async () => { if (!auth) return; try { await signOut(auth); } catch (e: any) { console.error(e); } };
+  const handleSignOut = async () => {
+    if (demoMode) {
+      localStorage.removeItem('demoMode');
+      localStorage.removeItem('demoRole');
+      window.location.reload();
+      return;
+    }
+    if (!auth) return; 
+    try { await signOut(auth); } catch (e: any) { console.error(e); }
+  };
 
-  if (!auth || !db || firebaseInitError) return <LoginPanel onAuthChanged={() => setRefreshFlag(f => f + 1)} />;
+  if (!demoMode && (!auth || !db || firebaseInitError)) return <LoginPanel onAuthChanged={() => setRefreshFlag(f => f + 1)} />;
 
   if (!user || !role) return <LoginPanel onAuthChanged={() => setRefreshFlag(f => f + 1)} />;
 
@@ -670,7 +723,9 @@ export default function App() {
         marginBottom: 24,
         boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)"
       }}>
-        <h1 style={{ color: "#1f2937", fontSize: "28px", fontWeight: "bold", margin: 0 }}>Riderupee</h1>
+        <h1 style={{ color: "#1f2937", fontSize: "28px", fontWeight: "bold", margin: 0 }}>
+          Riderupee {demoMode && <span style={{ fontSize: "14px", color: "#6b7280", fontWeight: "normal" }}>- Demo Mode</span>}
+        </h1>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <span style={{ color: "#6b7280", fontSize: "14px" }}>{user.email} ({role})</span>
           <button 
