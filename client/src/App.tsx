@@ -73,23 +73,29 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
   const disabled = !!firebaseInitError || !auth || !db;
 
   const handleLogin = async () => {
-    if (disabled) return alert("Firebase not initialized. Check configuration.");
-    if (!email || !password) return alert("Provide email and password");
+    if (disabled) {
+      alert("Firebase setup required. Please add your Firebase credentials to enable login.");
+      return;
+    }
+    if (!email || !password) return alert("Please provide email and password");
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
       if (onAuthChanged) onAuthChanged();
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || "Login failed");
+      alert(e?.message || "Login failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleRegister = async () => {
-    if (disabled) return alert("Firebase not initialized. Check configuration.");
-    if (!email || !password) return alert("Provide email and password");
+    if (disabled) {
+      alert("Firebase setup required. Please add your Firebase credentials to enable registration.");
+      return;
+    }
+    if (!email || !password) return alert("Please provide email and password");
     setLoading(true);
     try {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
@@ -97,14 +103,17 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
       if (onAuthChanged) onAuthChanged();
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || "Registration failed");
+      alert(e?.message || "Registration failed. Please check your information.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    if (disabled) return alert("Firebase not initialized. Check configuration.");
+    if (disabled) {
+      alert("Firebase setup required. Please add your Firebase credentials to enable Google sign-in and all app features.");
+      return;
+    }
     setLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -124,7 +133,13 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
       if (onAuthChanged) onAuthChanged();
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || "Google sign-in failed");
+      if (e.code === "auth/popup-closed-by-user") {
+        alert("Sign-in was cancelled.");
+      } else if (e.code === "auth/api-key-not-valid.-please-pass-a-valid-api-key.") {
+        alert("Firebase API key is invalid. Please check your Firebase configuration.");
+      } else {
+        alert(e?.message || "Google sign-in failed. Please check your Firebase setup.");
+      }
     } finally {
       setLoading(false);
     }
@@ -133,9 +148,22 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
   return (
     <div style={{ maxWidth: 480, margin: "32px auto", padding: 24, backgroundColor: "white", borderRadius: 8, boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)" }}>
       <h2 style={{ color: "#1f2937", fontSize: "24px", fontWeight: "bold", marginBottom: "24px", textAlign: "center" }}>Riderupee — Login / Register</h2>
-      {firebaseInitError && (
-        <div style={{ color: "#dc2626", backgroundColor: "#fef2f2", padding: 12, borderRadius: 6, marginBottom: 16, border: "1px solid #fecaca" }}>
-          Firebase initialization error. Check your config in the source file.
+      {(firebaseInitError || (!import.meta.env.VITE_FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_FIREBASE_API_KEY")) && (
+        <div style={{ color: "#dc2626", backgroundColor: "#fef2f2", padding: 16, borderRadius: 6, marginBottom: 16, border: "1px solid #fecaca" }}>
+          <h4 style={{ margin: "0 0 8px 0", fontWeight: "600" }}>Firebase Configuration Required</h4>
+          <p style={{ margin: "0 0 8px 0", fontSize: "14px", lineHeight: "1.4" }}>
+            To use authentication and real-time features, you need to set up Firebase:
+          </p>
+          <ol style={{ margin: "0", fontSize: "13px", lineHeight: "1.4", paddingLeft: "20px" }}>
+            <li>Go to <a href="https://console.firebase.google.com/" target="_blank" style={{ color: "#3b82f6" }}>Firebase Console</a></li>
+            <li>Create a new project or use existing one</li>
+            <li>Enable Authentication with Google and Email/Password</li>
+            <li>Enable Firestore Database</li>
+            <li>Add your Firebase credentials to this Replit project</li>
+          </ol>
+          <p style={{ margin: "8px 0 0 0", fontSize: "12px", color: "#6b7280" }}>
+            The app will work fully once Firebase is configured.
+          </p>
         </div>
       )}
       <input
