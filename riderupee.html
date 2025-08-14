@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Riderupee - Taxi Service (debugged)</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    #map { height: 60vh; width: 100%; }
+    .view { display: none; }
+    .active-view { display: block; }
+    .cursor-pointer { cursor: pointer; }
+    .chat-box { max-height: 300px; overflow-y: auto; }
+    #alert-area { position: fixed; top: 70px; right: 20px; z-index: 2000; width: 320px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Riderupee</a>
+      <div class="d-flex align-items-center" id="nav-right">
+        <span id="user-name" class="text-white me-3"></span>
+        <button id="btn-logout" class="btn btn-outline-light btn-sm" style="display:none">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <div id="alert-area"></div>
+
+  <div class="container my-4">
+
+    <!-- LOGIN VIEW -->
+    <div id="view-login" class="view active-view">
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <div class="card p-4">
+            <h3 class="mb-3">Sign in to Riderupee</h3>
+
+            <div class="mb-3">
+              <label class="form-label">Sign in as</label>
+              <select id="role-select" class="form-select">
+                <option value="user">User (Passenger)</option>
+                <option value="driver">Driver</option>
+              </select>
+            </div>
+
+            <button id="btn-google-signin" class="btn btn-danger w-100 mb-2">Sign in with Google</button>
+
+            <small class="text-muted">This demo uses Firebase Google Sign-In. After sign-in drivers can update their location (simulated) and users will see nearby taxis.</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN SEARCH VIEW -->
+    <div id="view-main" class="view">
+      <div class="row">
+        <div class="col-md-8">
+          <div class="card mb-3 p-3">
+            <h5>Find nearby taxis</h5>
+            <div class="d-flex gap-2 mb-3">
+              <input id="search-address" class="form-control" placeholder="Enter address or location">
+              <button id="btn-search" class="btn btn-primary">Search</button>
+              <button id="btn-my-loc" class="btn btn-outline-secondary">Use my location</button>
+            </div>
+            <div id="map" class="border"></div>
+          </div>
+
+          <div class="card p-3">
+            <h5>Nearby Taxis</h5>
+            <ul id="nearby-list" class="list-group"></ul>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="card p-3 mb-3">
+            <h5>Profile</h5>
+            <div id="profile-area">
+              <!-- Populated by JS -->
+            </div>
+            <div class="mt-3">
+              <button id="btn-open-profile" class="btn btn-outline-primary btn-sm">Open Profile</button>
+            </div>
+          </div>
+
+          <div class="card p-3 mb-3">
+            <h5>Payment</h5>
+            <p>Quick payment (demo)</p>
+            <button id="btn-open-payment" class="btn btn-success btn-sm">Open Payment</button>
+          </div>
+
+          <div class="card p-3">
+            <h5>Chats</h5>
+            <ul id="chats-list" class="list-group"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYMENT VIEW -->
+    <div id="view-payment" class="view">
+      <div class="card p-3">
+        <h4>Payment Page</h4>
+        <form id="payment-form">
+          <div class="mb-3">
+            <label>Amount</label>
+            <input id="pay-amount" class="form-control" type="number" required>
+          </div>
+          <div class="mb-3">
+            <label>Payment Method</label>
+            <select id="pay-method" class="form-select">
+              <option>Wallet</option>
+              <option>Card</option>
+              <option>UPI</option>
+            </select>
+          </div>
+          <button class="btn btn-primary">Pay</button>
+          <button type="button" id="btn-back-main" class="btn btn-link">Back</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- PROFILE VIEW -->
+    <div id="view-profile" class="view">
+      <div class="card p-3">
+        <h4>Profile</h4>
+        <form id="profile-form">
+          <div class="mb-3">
+            <label>Name</label>
+            <input id="profile-name" class="form-control">
+          </div>
+          <div class="mb-3 driver-only" style="display:none">
+            <label>Vehicle Info</label>
+            <input id="profile-vehicle" class="form-control" placeholder="e.g. Toyota Innova - KA01AB1234">
+          </div>
+          <div class="mb-3 driver-only" style="display:none">
+            <label>Update Current Location (drivers)</label>
+            <div class="d-flex gap-2">
+              <input id="driver-lat" class="form-control" placeholder="lat">
+              <input id="driver-lng" class="form-control" placeholder="lng">
+            </div>
+            <button id="btn-update-loc" class="btn btn-sm btn-outline-secondary mt-2 driver-only" style="display:none">Update Location</button>
+          </div>
+          <button class="btn btn-primary">Save Profile</button>
+          <button type="button" id="btn-back-main-2" class="btn btn-link">Back</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- CHAT VIEW -->
+    <div id="view-chat" class="view">
+      <div class="card p-3">
+        <h4>Chat with <span id="chat-with-name"></span></h4>
+        <div class="chat-box border p-2 mb-2" id="chat-messages"></div>
+        <form id="chat-form" class="d-flex gap-2">
+          <input id="chat-input" class="form-control" placeholder="Type a message">
+          <button class="btn btn-primary">Send</button>
+          <button type="button" id="btn-chat-back" class="btn btn-link">Back</button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+  <!-- Footer -->
+<footer class="bg-dark text-white text-center text-lg-start mt-5">
+  <div class="container p-4">
+    <div class="row align-items-center">
+      
+      <!-- Logo and slogan -->
+      <div class="col-lg-6 col-md-12 mb-4 mb-md-0 text-start">
+        <div class="d-flex align-items-center">
+          <img src="riderupee.PNG" alt="Riderupee Logo" style="height:60px; border-radius:8px; margin-right:10px;">
+          <h5 class="mb-0">RIDERRUPEE.IN</h5>
+        </div>
+        <p class="mt-2">₹ide. ₹elax. ₹epeat.</p>
+      </div>
+
+      <!-- Contact -->
+      <div class="col-lg-6 col-md-12 mb-4 mb-md-0 text-end">
+        <p class="mb-0">Made with ❤️ in India</p>
+        <p>Contact: <a href="mailto:riderupee@gmail.com" class="text-white">riderupee@gmail.com</a></p>
+      </div>
+    </div>
+  </div>
+  <div class="text-center p-3 border-top border-secondary">
+    © 2025 RideRupee. All rights reserved.
+  </div>
+</footer>
+
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- NOTE: Replace the placeholders below with your actual Firebase configuration and Google Maps API key -->
+  <script>
+    // ---------- CONFIG - REPLACE THESE WITH YOUR VALUES ----------
+    const firebaseConfig = {
+     apiKey: "AIzaSyCCsKOb_1Ug4oHbtuhnqqHIKILXKjTIB1s",
+  authDomain: "riderupee-3d6a7.firebaseapp.com",
+  projectId: "riderupee-3d6a7",
+  storageBucket: "riderupee-3d6a7.firebasestorage.app",
+  messagingSenderId: "723828361707",
+  appId: "1:723828361707:web:c077cae44fcbd54c2f71ae",
+  measurementId: "G-T79VTL0N2L"
+    };
+
+    const GOOGLE_MAPS_API_KEY = 'AIzaSyB-LqM7zE-Svy9UBUkgURdFYxRWP7HYJA8';
+    // ------------------------------------------------------------
+
+    // Small UI helpers
+    function showAlert(msg, type = 'danger', timeout = 8000){
+      const id = 'a' + Date.now();
+      const container = document.getElementById('alert-area');
+      const div = document.createElement('div');
+      div.className = `alert alert-${type} alert-dismissible fade show`;
+      div.id = id;
+      div.innerHTML = `<div class="small">${msg}</div><button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+      container.appendChild(div);
+      if(timeout) setTimeout(()=>{ try{ const e = document.getElementById(id); if(e){ e.classList.remove('show'); e.classList.add('hide'); e.remove(); } } catch(e){} }, timeout);
+    }
+
+    function clearAlerts(){ document.getElementById('alert-area').innerHTML = ''; }
+
+    // Initialize Firebase safely
+    let db = null;
+    try{
+      if(!firebase.apps || !firebase.apps.length) firebase.initializeApp(firebaseConfig);
+      // compat auth & firestore
+      const auth = firebase.auth();
+      db = firebase.firestore();
+      window.firebaseAuth = auth; // expose for debugging
+    } catch(e){
+      console.error('Firebase init error', e);
+      showAlert('Firebase initialization failed: ' + (e && e.message ? e.message : e), 'danger', 0);
+    }
+
+    // references
+    const auth = window.firebaseAuth || (firebase && firebase.auth && firebase.auth());
+
+    function isFirestoreAvailable(){ return !!db; }
+
+    // Safe wrappers for Firestore operations
+    async function safeGetDrivers(){
+      if(!isFirestoreAvailable()) return [];
+      try{
+        const snap = await db.collection('profiles').where('role','==','driver').get();
+        const rows = [];
+        snap.forEach(d=> rows.push({ id: d.id, ...d.data() }));
+        return rows;
+      } catch(e){ console.error('safeGetDrivers error', e); showAlert('Firestore error: '+e.message); return []; }
+    }
+
+    let driversUnsubscribe = null;
+    function watchDrivers(){
+      if(!isFirestoreAvailable()){ console.warn('watchDrivers skipped - no firestore'); return; }
+      try{
+        if(driversUnsubscribe) driversUnsubscribe();
+        driversUnsubscribe = db.collection('profiles').where('role','==','driver').onSnapshot(snapshot=>{
+          // Update markers and nearby list
+          const drivers = [];
+          snapshot.forEach(s => drivers.push({ id: s.id, ...s.data() }));
+
+          // if map available, refresh markers
+          if(window.map && typeof google !== 'undefined'){
+            // clear old markers
+            if(window._riderMarkers){ window._riderMarkers.forEach(m=>m.setMap(null)); }
+            window._riderMarkers = [];
+            drivers.forEach(d=>{
+              if(d.lat && d.lng){
+                try{
+                  const marker = new google.maps.Marker({ position: { lat: d.lat, lng: d.lng}, map: window.map, title: d.name });
+                  marker.addListener('click', ()=> openChatWithDriver(d.id, d.name));
+                  window._riderMarkers.push(marker);
+                } catch(e){ console.warn('marker creation failed', e); }
+              }
+            });
+          }
+
+          // always refresh nearby list (uses drivers data)
+          refreshNearbyList(drivers);
+        }, err => {
+          console.error('drivers onSnapshot error', err);
+          showAlert('Realtime driver listener error: ' + (err && err.message ? err.message : err));
+        });
+      } catch(e){ console.error('watchDrivers failed', e); showAlert('Failed to watch drivers: '+e.message); }
+    }
+
+    // Map & nearby logic
+    let map, geocoder, userMarker, currentLocation = null;
+
+    function initMap(){
+      try{
+        geocoder = new google.maps.Geocoder();
+        map = new google.maps.Map(document.getElementById('map'), {
+          center: {lat: 12.9716, lng: 77.5946}, // default: Bangalore
+          zoom: 13
+        });
+
+        // click to set user location
+        map.addListener('click', (e)=>{
+          setUserLocation(e.latLng.lat(), e.latLng.lng());
+        });
+
+        // start listening to drivers (if firestore available)
+        if(isFirestoreAvailable()) watchDrivers();
+      } catch(e){
+        console.error('initMap error', e);
+        showAlert('Google Maps init error: '+ (e && e.message ? e.message : e));
+      }
+    }
+
+    function setUserLocation(lat,lng){
+      currentLocation = {lat, lng};
+      if(userMarker) userMarker.setMap(null);
+      if(window.google && window.map){
+        userMarker = new google.maps.Marker({position:{lat,lng}, map, title:'You'});
+        map.panTo({lat,lng});
+      }
+      // refresh nearby list using latest drivers (if we have snapshot in memory), otherwise fetch
+      if(window._lastDriversSnapshot) refreshNearbyList(window._lastDriversSnapshot);
+      else safeGetDrivers().then(drivers => refreshNearbyList(drivers));
+    }
+
+    document.getElementById('btn-my-loc').addEventListener('click', ()=>{
+      if(navigator.geolocation){
+        navigator.geolocation.getCurrentPosition(pos=>{
+          setUserLocation(pos.coords.latitude, pos.coords.longitude);
+        }, err=> showAlert('Could not get location: '+err.message));
+      } else showAlert('Geolocation not supported');
+    });
+
+    document.getElementById('btn-search').addEventListener('click', ()=>{
+      const addr = document.getElementById('search-address').value.trim();
+      if(!addr) return showAlert('Enter an address');
+      if(!geocoder) return showAlert('Geocoder not ready');
+      geocoder.geocode({address: addr}, (results, status)=>{
+        if(status==='OK' && results[0]){
+          const loc = results[0].geometry.location;
+          setUserLocation(loc.lat(), loc.lng());
+        } else showAlert('Geocode failed: '+status);
+      });
+    });
+
+    function distanceKm(a,b){
+      // haversine
+      const R = 6371;
+      const dLat = (b.lat-a.lat)*Math.PI/180;
+      const dLon = (b.lng-a.lng)*Math.PI/180;
+      const la = a.lat*Math.PI/180;
+      const lb = b.lat*Math.PI/180;
+      const sinDlat = Math.sin(dLat/2), sinDlon = Math.sin(dLon/2);
+      const A = sinDlat*sinDlat + Math.cos(la)*Math.cos(lb)*sinDlon*sinDlon;
+      const C = 2*Math.atan2(Math.sqrt(A), Math.sqrt(1-A));
+      return R*C;
+    }
+
+    // Refresh nearby list given drivers array (if provided) otherwise fetch
+    async function refreshNearbyList(driversArg){
+      try{
+        let drivers = driversArg;
+        if(!drivers) drivers = await safeGetDrivers();
+        // store snapshot for reuse
+        window._lastDriversSnapshot = drivers;
+
+        const list = document.getElementById('nearby-list'); list.innerHTML = '';
+        if(!currentLocation) {
+          const li = document.createElement('li'); li.className='list-group-item'; li.textContent = 'Set your location by clicking on map or using "Use my location"';
+          list.appendChild(li); return; }
+
+        drivers.forEach(d=>{
+          if(!d.lat || !d.lng) return; // skip
+          const km = distanceKm(currentLocation, {lat:d.lat, lng:d.lng});
+
+          const li = document.createElement('li'); li.className='list-group-item d-flex justify-content-between align-items-center';
+
+          const left = document.createElement('div');
+          const strong = document.createElement('strong'); strong.textContent = d.name || 'Driver';
+          left.appendChild(strong);
+          left.appendChild(document.createElement('br'));
+          const small = document.createElement('small'); small.textContent = d.vehicle || '';
+          left.appendChild(small);
+
+          const right = document.createElement('div');
+          const distText = document.createElement('div'); distText.textContent = `${km.toFixed(2)} km`;
+          const btn = document.createElement('button'); btn.className='btn btn-sm btn-primary mt-1'; btn.textContent = 'Chat';
+          btn.addEventListener('click', ()=> openChatWithDriver(d.id, d.name || 'Driver'));
+
+          right.appendChild(distText); right.appendChild(document.createElement('br')); right.appendChild(btn);
+
+          li.appendChild(left); li.appendChild(right);
+          list.appendChild(li);
+        });
+      } catch(e){ console.error('refreshNearbyList error', e); showAlert('Error getting nearby taxis: '+e.message); }
+    }
+
+    // Profile logic
+    document.getElementById('btn-open-profile').addEventListener('click', async ()=>{
+      const prof = window.currentProfile || JSON.parse(localStorage.getItem('riderupee_profile') || '{}');
+      document.getElementById('profile-name').value = prof.name||'';
+      document.getElementById('profile-vehicle').value = prof.vehicle||'';
+      if(prof && prof.role === 'driver') document.querySelectorAll('.driver-only').forEach(e=>e.style.display='block');
+      else document.querySelectorAll('.driver-only').forEach(e=>e.style.display='none');
+      showView('view-profile');
+    });
+
+    document.getElementById('btn-back-main').addEventListener('click', ()=>showView('view-main'));
+    document.getElementById('btn-back-main-2').addEventListener('click', ()=>showView('view-main'));
+
+    document.getElementById('profile-form').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const user = auth && auth.currentUser; if(!user){
+        // store locally as fallback
+        const name = document.getElementById('profile-name').value.trim();
+        const vehicle = document.getElementById('profile-vehicle').value.trim();
+        const localProf = { name, vehicle, role: document.getElementById('role-select').value || 'user' };
+        localStorage.setItem('riderupee_profile', JSON.stringify(localProf));
+        window.currentProfile = localProf;
+        showAlert('Saved locally (you are not signed in).', 'info');
+        showView('view-main');
+        return;
+      }
+
+      const name = document.getElementById('profile-name').value.trim();
+      const vehicle = document.getElementById('profile-vehicle').value.trim();
+      const lat = parseFloat(document.getElementById('driver-lat').value) || null;
+      const lng = parseFloat(document.getElementById('driver-lng').value) || null;
+      const update = { name, vehicle };
+      if(!isNaN(lat) && !isNaN(lng)) { update.lat = lat; update.lng = lng; }
+
+      if(!isFirestoreAvailable()){
+        showAlert('Firestore not available: profile cannot be saved remotely. Saved locally instead.', 'warning');
+        const localProf = { name, vehicle, role: window.currentProfile ? window.currentProfile.role : 'user' };
+        localStorage.setItem('riderupee_profile', JSON.stringify(localProf));
+        window.currentProfile = localProf;
+        showView('view-main');
+        return;
+      }
+
+      try{
+        await db.collection('profiles').doc(user.uid).update(update);
+        const p = await db.collection('profiles').doc(user.uid).get(); window.currentProfile = p.data();
+        showAlert('Profile saved');
+        showView('view-main');
+      } catch(e){ console.error('profile save error', e); showAlert('Failed to save profile: '+e.message); }
+    });
+
+    document.getElementById('btn-update-loc').addEventListener('click', async ()=>{
+      const lat = parseFloat(document.getElementById('driver-lat').value);
+      const lng = parseFloat(document.getElementById('driver-lng').value);
+      const user = auth && auth.currentUser; if(!user) return showAlert('Not signed in');
+      if(!isFirestoreAvailable()) return showAlert('Firestore not available');
+      try{
+        await db.collection('profiles').doc(user.uid).update({lat,lng});
+        showAlert('Location updated');
+      } catch(e){ console.error('update location err', e); showAlert('Failed to update location: '+e.message); }
+    });
+
+    // Payment
+    document.getElementById('btn-open-payment').addEventListener('click', ()=> showView('view-payment'));
+    document.getElementById('payment-form').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const amt = parseFloat(document.getElementById('pay-amount').value);
+      const method = document.getElementById('pay-method').value;
+      const user = auth && auth.currentUser; if(!user){
+        // fallback local
+        const payments = JSON.parse(localStorage.getItem('riderupee_payments') || '[]');
+        payments.push({ uid: 'local', amount: amt, method, createdAt: new Date().toISOString() });
+        localStorage.setItem('riderupee_payments', JSON.stringify(payments));
+        showAlert('Payment saved locally (demo)');
+        showView('view-main');
+        return;
+      }
+      if(!isFirestoreAvailable()) return showAlert('Firestore not available');
+      try{
+        await db.collection('payments').add({uid:user.uid, amount:amt, method, createdAt: firebase.firestore.FieldValue.serverTimestamp()});
+        showAlert('Payment recorded (demo)');
+        showView('view-main');
+      } catch(e){ console.error('payment save err', e); showAlert('Failed to record payment: '+e.message); }
+    });
+
+    // Chat logic
+    let currentMessagesUnsub = null;
+    async function openChatWithDriver(driverId, driverName){
+      const user = auth && auth.currentUser;
+      if(!user) return showAlert('Sign in to chat', 'warning');
+      const chatId = [user.uid, driverId].sort().join('_');
+      window.currentChat = { chatId, driverId };
+      document.getElementById('chat-with-name').textContent = driverName;
+      showView('view-chat');
+
+      const msgBox = document.getElementById('chat-messages'); msgBox.innerHTML='Loading...';
+
+      if(!isFirestoreAvailable()){
+        msgBox.innerHTML = '<div class="small text-muted">Chat is not available because Firestore is not connected.</div>';
+        return;
+      }
+
+      try{
+        // unsubscribe previous
+        if(currentMessagesUnsub) currentMessagesUnsub();
+        const chatDocRef = db.collection('chats').doc(chatId);
+        currentMessagesUnsub = chatDocRef.collection('messages').orderBy('ts').onSnapshot(snap=>{
+          msgBox.innerHTML = '';
+          snap.forEach(doc=>{
+            const m = doc.data();
+            const div = document.createElement('div');
+            div.innerHTML = `<div><strong>${m.fromName||m.from}</strong>: ${m.text}</div>`;
+            msgBox.appendChild(div);
+          });
+          msgBox.scrollTop = msgBox.scrollHeight;
+        }, err => { console.error('chat onSnapshot error', err); showAlert('Chat listener error: '+err.message); });
+
+        const cd = await chatDocRef.get();
+        if(!cd.exists) await chatDocRef.set({participants: [user.uid, driverId], createdAt: firebase.firestore.FieldValue.serverTimestamp()});
+      } catch(e){ console.error('openChat error', e); showAlert('Failed to open chat: '+e.message); }
+    }
+
+    document.getElementById('btn-chat-back').addEventListener('click', ()=> showView('view-main'));
+
+    document.getElementById('chat-form').addEventListener('submit', async (e)=>{
+      e.preventDefault(); const txt = document.getElementById('chat-input').value.trim();
+      if(!txt) return;
+      const user = auth && auth.currentUser; if(!user) return showAlert('Sign in');
+      const chatId = window.currentChat && window.currentChat.chatId; if(!chatId) return showAlert('No chat selected');
+      if(!isFirestoreAvailable()) return showAlert('Firestore not available');
+      try{
+        await db.collection('chats').doc(chatId).collection('messages').add({from: user.uid, fromName: user.displayName||'', text: txt, ts: firebase.firestore.FieldValue.serverTimestamp()});
+        document.getElementById('chat-input').value='';
+      } catch(e){ console.error('send message err', e); showAlert('Failed to send message: '+e.message); }
+    });
+
+    // Show chats list for this user (recent chats)
+    function loadChatList(){
+      const ul = document.getElementById('chats-list'); ul.innerHTML='';
+      const user = auth && auth.currentUser; if(!user) return;
+      if(!isFirestoreAvailable()) return; // no chat list offline for simplicity
+      db.collection('chats').where('participants','array-contains', user.uid).onSnapshot(async snap=>{
+        ul.innerHTML='';
+        const promises = snap.docs.map(async doc => {
+          const data = doc.data();
+          const other = data.participants.find(p=>p!==user.uid);
+          const profDoc = await db.collection('profiles').doc(other).get();
+          return { other, name: profDoc.exists ? profDoc.data().name : other };
+        });
+        const rows = await Promise.all(promises);
+        rows.forEach(r => {
+          const li = document.createElement('li'); li.className='list-group-item d-flex justify-content-between align-items-center';
+          const left = document.createElement('div'); left.textContent = r.name;
+          const btn = document.createElement('button'); btn.className='btn btn-sm btn-primary'; btn.textContent = 'Open';
+          btn.addEventListener('click', ()=> openChatWithDriver(r.other, r.name));
+          li.appendChild(left); li.appendChild(btn); ul.appendChild(li);
+        });
+      }, err => { console.error('chats list onSnapshot err', err); showAlert('Chats listener error: '+err.message); });
+    }
+
+    function initAppForUser(){
+      loadChatList();
+      // update profile area
+      const pa = document.getElementById('profile-area');
+      const p = window.currentProfile || JSON.parse(localStorage.getItem('riderupee_profile') || '{}');
+      pa.innerHTML = `<div><strong>${p.name||''}</strong><div>${p.email||''}</div><div>Role: ${p.role||'user'}</div></div>`;
+      // show driver-only UI if profile role driver
+      if(p && p.role === 'driver') document.querySelectorAll('.driver-only').forEach(e=>e.style.display='block');
+      else document.querySelectorAll('.driver-only').forEach(e=>e.style.display='none');
+    }
+
+    // Auth & sign-in
+    document.getElementById('btn-google-signin').addEventListener('click', async ()=>{
+      const role = document.getElementById('role-select').value;
+      try{
+        if(!auth) throw new Error('Firebase Auth not initialized');
+        const provider = new firebase.auth.GoogleAuthProvider();
+        const res = await auth.signInWithPopup(provider);
+        const user = res.user;
+        // Save profile with role if not exists
+        if(!isFirestoreAvailable()){
+          // save locally as fallback
+          const localProf = { uid: user.uid, name: user.displayName || '', email: user.email || '', role };
+          localStorage.setItem('riderupee_profile', JSON.stringify(localProf));
+          window.currentProfile = localProf;
+          showAlert('Signed in (offline mode). Profile saved locally.');
+          showView('view-main');
+          initAppForUser();
+          return;
+        }
+        const docRef = db.collection('profiles').doc(user.uid);
+        const doc = await docRef.get();
+        if(!doc.exists){
+          await docRef.set({ uid: user.uid, name: user.displayName || '', email: user.email || '', role: role, vehicle: '', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        } else if(doc.data().role !== role){
+          await docRef.update({ role });
+        }
+      } catch(e){ console.error('signin failed', e); showAlert('Sign-in failed: '+(e && e.message ? e.message : e), 'danger'); }
+    });
+
+    // react to auth changes
+    if(auth && auth.onAuthStateChanged){
+      auth.onAuthStateChanged(async user=>{
+        try{
+          if(user){
+            document.getElementById('btn-logout').style.display='inline-block';
+            document.getElementById('user-name').textContent = user.displayName||user.email;
+            if(isFirestoreAvailable()){
+              const pdoc = await db.collection('profiles').doc(user.uid).get();
+              window.currentProfile = pdoc.exists ? pdoc.data() : null;
+            } else {
+              const localProf = JSON.parse(localStorage.getItem('riderupee_profile') || '{}');
+              window.currentProfile = localProf.uid === user.uid ? localProf : { name: user.displayName, email: user.email, role: 'user' };
+            }
+            showView('view-main');
+            initAppForUser();
+          } else {
+            document.getElementById('btn-logout').style.display='none';
+            document.getElementById('user-name').textContent = '';
+            showView('view-login');
+          }
+        } catch(e){ console.error('auth state handler error', e); showAlert('Auth state error: '+e.message); }
+      });
+    }
+
+    document.getElementById('btn-logout').addEventListener('click', ()=> auth && auth.signOut());
+
+    // Show map script loader
+    (function loadMaps(){
+      if(!GOOGLE_MAPS_API_KEY){ showAlert('Google Maps API key missing'); return; }
+      const s = document.createElement('script');
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
+      s.async = true; s.defer = true;
+      window.initMap = initMap;
+      document.head.appendChild(s);
+    })();
+
+  </script>
+
+</body>
+</html>
