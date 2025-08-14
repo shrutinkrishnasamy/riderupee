@@ -6,6 +6,8 @@ import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   signOut,
+  signInWithPopup,
+  GoogleAuthProvider,
   Auth,
   User
 } from "firebase/auth";
@@ -55,6 +57,9 @@ try {
   // keep auth/db null so UI can show helpful message
 }
 
+// Initialize Google Auth Provider
+const googleProvider = new GoogleAuthProvider();
+
 interface LoginPanelProps {
   onAuthChanged: () => void;
 }
@@ -93,6 +98,33 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
     } catch (e: any) {
       console.error(e);
       alert(e?.message || "Registration failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (disabled) return alert("Firebase not initialized. Check configuration.");
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      // Check if user already exists in our database
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      
+      // If user doesn't exist, create a new document with default role
+      if (!userDoc.exists()) {
+        await setDoc(doc(db, "users", user.uid), { 
+          email: user.email, 
+          role: role // Use selected role from dropdown
+        });
+      }
+      
+      if (onAuthChanged) onAuthChanged();
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message || "Google sign-in failed");
     } finally {
       setLoading(false);
     }
@@ -157,7 +189,7 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
         <option value="user">User</option>
         <option value="owner">Taxi Owner</option>
       </select>
-      <div style={{ display: "flex", gap: 12 }}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
         <button 
           onClick={handleLogin} 
           disabled={loading || disabled} 
@@ -193,6 +225,40 @@ function LoginPanel({ onAuthChanged }: LoginPanelProps) {
           Register
         </button>
       </div>
+      
+      <div style={{ textAlign: "center", margin: "16px 0", color: "#6b7280", fontSize: "14px" }}>
+        or
+      </div>
+      
+      <button 
+        onClick={handleGoogleSignIn} 
+        disabled={loading || disabled} 
+        style={{ 
+          width: "100%", 
+          padding: 12,
+          backgroundColor: disabled ? "#9ca3af" : "#ffffff",
+          color: disabled ? "#ffffff" : "#1f2937",
+          border: disabled ? "none" : "1px solid #d1d5db",
+          borderRadius: 6,
+          fontSize: "16px",
+          fontWeight: "600",
+          cursor: disabled ? "not-allowed" : "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+          <g fill="none" fillRule="evenodd">
+            <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.540-1.837.860-3.048.860-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+            <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+            <path d="M9 3.58c1.321 0 2.508.454 3.440 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+          </g>
+        </svg>
+        Continue with Google
+      </button>
     </div>
   );
 }
